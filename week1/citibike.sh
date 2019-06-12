@@ -4,6 +4,7 @@
 #
 
 # count the number of unique stations
+
 cat 201402-citibike-tripdata.csv | cut -d, -f 4,8 | tr , "\n" | sort | uniq | wc -l
 
 # count the number of unique bikes
