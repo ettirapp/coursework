@@ -13,7 +13,7 @@ cat 201402-citibike-tripdata.csv | cut -d, -f12 | sort | uniq | wc -l
 cat 201402-citibike-tripdata.csv | cut -d, -f2 | cut -d' ' -f 1 | sort | grep [0-9] | uniq -c
 
 # find the day with the most rides
-cat 201402-citibike-tripdata.csv | cut -d, -f2 | cut -d' ' -f 1 | sort | grep [0-9] | uniq -c | sort -nr | head -n1
+cat 201402-citibike-tripdata.csv | cut -d, -f2 | cut -d' ' -f 1 | sort | uniq -c | sort -nr | head -n1
  
 # find the day with the fewest rides
 cat 201402-citibike-tripdata.csv | cut -d, -f2 | cut -d' ' -f 1 | sort | grep [0-9] | uniq -c | sort -n | head -n1
@@ -28,4 +28,4 @@ cat 201402-citibike-tripdata.csv | cut -d, -f14,15 | sort | uniq -c
 cat 201402-citibike-tripdata.csv | cut -d, -f5 | grep '[0-9].*&.*[0-9]' | wc -l
 
 # compute the average trip duration
-awk -F, '{gsub(/"/, "", $1); sum += $1; count += 1} END {print sum/count}' 201402-citibike-tripdata.csv
+cat 201402-citibike-tripdata.csv | tr -d '"' | awk -F, '{sum += $1; count += 1} END {print sum/count/60}'
