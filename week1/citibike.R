@@ -29,7 +29,7 @@ trips %>% summarize(n())
 trips %>% 
   summarize(max(birth_year))
 
-trips %>% 
+trips %>%
   filter(birth_year != "\\N") %>% 
   summarize(min(birth_year))
 
@@ -95,4 +95,3 @@ trips %>%
   group_by(hour) %>%
   summarise(average = mean(count)) %>%
   arrange(desc(average))
-  
