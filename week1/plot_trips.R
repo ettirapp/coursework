@@ -123,17 +123,16 @@ trips %>%
   group_by(hour) %>%
   summarize(avg = mean(count), sd = sd(count))
 
+
 # plot the above
 trips %>%
   mutate(hour = hour(starttime)) %>%
   group_by(ymd, hour) %>%
   summarize(count = n()) %>%
-  ungroup() %>%
   group_by(hour) %>%
   summarize(avg = mean(count), sd = sd(count)) %>%
-  gather("stat", "value", avg, sd) %>%
-  ggplot(mapping = aes(x = hour, y = value, color = stat)) +
-  geom_line()
+  ggplot(mapping = aes(x = hour, y = avg)) +
+  geom_pointrange(aes(ymin = avg - sd, ymax = avg + sd))
 
 
 # repeat this, but now split the results by day of the week (Monday, Tuesday, ...) or weekday vs. weekend days
@@ -142,9 +141,7 @@ trips %>%
   mutate(wkdy = wday(starttime, label = TRUE)) %>%
   group_by(ymd, wkdy) %>%
   summarize(count = n()) %>%
-  ungroup() %>%
   group_by(wkdy) %>%
   summarize(avg = mean(count), sd = sd(count)) %>%
-  gather("stat", "value", avg, sd) %>%
-  ggplot(mapping = aes(x = wkdy, y = value, color = stat)) +
-  geom_point()
+  ggplot(mapping = aes(x = wkdy, y = avg)) +
+  geom_pointrange(aes(ymin = avg - sd, ymax = avg + sd))
