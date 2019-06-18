@@ -147,6 +147,7 @@ ratings %>%
 user_subset <- ratings %>%
   group_by(user_id) %>%
   filter(n() > 10) %>%
+  select(user_id, movie_id) %>%
   ungroup()
 
 #count the number of unique users in this subset
@@ -156,7 +157,6 @@ num_users <- user_subset %>% select(user_id) %>% unique() %>% count()
 ranked_movies <- user_subset %>%
   group_by(movie_id) %>%
   summarize(num_ratings = n()) %>%
-  arrange(desc(num_ratings)) %>%
   mutate(rank = rank(desc(num_ratings))) %>%
   select(movie_id, rank)
 
@@ -166,8 +166,8 @@ df <- inner_join(user_subset, ranked_movies)
 ninety <- df %>%
   group_by(user_id) %>%
   mutate(pr = percent_rank(rank)) %>%
-  filter(pr <= .9) %>%
-  summarize(rank_90 = max(rank)) %>%
+  filter(pr >= .9) %>%
+  summarize(rank_90 = min(rank)) %>%
   ungroup()
 
 hundred <- df %>%
@@ -191,9 +191,10 @@ happy90 <- ranks %>%
 happy100 <- ranks %>%
   select(user_id, rank_100) %>%
   arrange(rank_100) %>%
-  mutate(num_100sat = rank(rank_100, ties.method = "first")) %>%
+  mutate(num_100sat = row_number()) %>%
   group_by(rank_100) %>%
-  summarize(num_100sat = max(num_100sat))
+  summarize(num_100sat = max(num_100sat)) %>%
+  ungroup()
 
 #plot the data!
 ggplot(happy90) +
