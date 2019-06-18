@@ -143,11 +143,16 @@ ratings %>%
 # another for 90%---do not, however, bother implementing the null
 # model (shown in the dashed lines).
 
+#select only users who rated at least 10 movies
 user_subset <- ratings %>%
   group_by(user_id) %>%
   filter(n() > 10) %>%
   ungroup()
 
+#count the number of unique users in this subset
+num_users <- user_subset %>% select(user_id) %>% unique() %>% count()
+
+#rank the movies by popularity
 ranked_movies <- user_subset %>%
   group_by(movie_id) %>%
   summarize(num_ratings = n()) %>%
@@ -155,10 +160,47 @@ ranked_movies <- user_subset %>%
   mutate(rank = rank(desc(num_ratings))) %>%
   select(movie_id, rank)
 
-df <- inner_join(user_subset, ranked_movies) %>%
-  select(user_id, movie_id, rank)
+#join the user and movie dataframes
+df <- inner_join(user_subset, ranked_movies)
 
-inventory <- c(1:20000)
+ninety <- df %>%
+  group_by(user_id) %>%
+  mutate(pr = percent_rank(rank)) %>%
+  filter(pr <= .9) %>%
+  summarize(rank_90 = max(rank)) %>%
+  ungroup()
 
+hundred <- df %>%
+  group_by(user_id) %>%
+  summarize(rank_100 = max(rank)) %>%
+  ungroup()
+
+#for each user, the inventory size needed for them to be
+#90 and 100 percent satisfied
+ranks <- inner_join(ninety, hundred)
+
+#calculate how many users are 90% satisfied with each inventory size
+happy90 <- ranks %>%
+  select(user_id, rank_90) %>%
+  arrange(rank_90) %>%
+  mutate(num_90sat = rank(rank_90, ties.method = "first")) %>%
+  group_by(rank_90) %>%
+  summarize(num_90sat = max(num_90sat))
+
+#calculate how many users are 100% satisfied with each inventory size
+happy100 <- ranks %>%
+  select(user_id, rank_100) %>%
+  arrange(rank_100) %>%
+  mutate(num_100sat = rank(rank_100, ties.method = "first")) %>%
+  group_by(rank_100) %>%
+  summarize(num_100sat = max(num_100sat))
+
+#plot the data!
+ggplot(happy90) +
+  geom_line(aes(x = rank_90, y = num_90sat/num_users$n)) +
+  geom_line(data = happy100, aes(x = rank_100, y = num_100sat/num_users$n)) +
+  geom_vline(aes(xintercept = 3000), linetype = "dashed") +
+  scale_y_continuous(label = percent) +
+  labs(x = "Inventory Size", y = "Percent Satisfied")
 
 ```
