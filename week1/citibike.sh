@@ -28,5 +28,6 @@ cut -d, -f14,15 201402-citibike-tripdata.csv | sort | uniq -c
 # count the number of trips that start on cross streets that both contain numbers (e.g., "1 Ave & E 15 St", "E 39 St & 2 Ave", ...)
 cut -d, -f5 201402-citibike-tripdata.csv | grep '[0-9].*&.*[0-9]' | wc -l
 
+
 # compute the average trip duration
 cat 201402-citibike-tripdata.csv | tr -d '"' | awk -F, '{sum += $1; count++} END {print sum/count/60}'
