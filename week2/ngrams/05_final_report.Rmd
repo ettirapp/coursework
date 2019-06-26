@@ -1,8 +1,12 @@
 ---
 title: "MSD Homework 2, Problem 3"
 author: "Your Name (your uni)"
-date: '`r Sys.time()`'
+date: "`r Sys.time()`"
 output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
   pdf_document:
     toc: yes
     toc_depth: 3
@@ -50,12 +54,19 @@ Load in the `year_counts.tsv` and `total_counts.csv` files. Use the `here()` fun
 
 ```{r load-counts}
 
+yearcounts <- read_tsv(here('year_counts.tsv'),
+                    col_names = c('term', 'year', 'volume', 'book_count'))
+
+totalcounts <- read_csv(here('total_counts.csv'),
+                        col_names = c('year', 'total_volume', 'page_count', 'book_count'))
 
 ```
 
 ## Your written answer
 
 Add a line below using Rmarkdown's inline syntax to print the total number of lines in each dataframe you've created.
+
+There are `r count(yearcounts)$n` lines in the yearcounts dataframe, and `r count(totalcounts)$n` lines in the totalcounts dataframe.
 
 # Part B
 
@@ -67,6 +78,8 @@ Join the raw year term counts with the total counts and divide to get a proporti
 
 ```{r join-years-and-totals}
 
+counts <- left_join(yearcounts, totalcounts, by = "year") %>%
+  mutate(prop_mentions = volume/total_volume)
 
 ```
 
@@ -75,6 +88,13 @@ Join the raw year term counts with the total counts and divide to get a proporti
 Plot the proportion of mentions for the terms "1883", "1910", and "1950" over time from 1850 to 2012, as in the main figure 3a of the original paper. Use the `percent` function from the `scales` package for a readable y axis. Each term should have a different color, it's nice if these match the original paper but not strictly necessary.
 
 ```{r plot-proportion-over-time}
+counts2 <- counts %>% filter(term == "1883" | term == "1910" | term == "1950") %>%
+  mutate(term = as.character(term))
+
+counts2 %>% 
+  ggplot() + geom_line(aes(x = year, y = prop_mentions, color = as.factor(term))) +
+  scale_y_continuous(label = percent) + xlim(1850, 2000) + xlab("Year") +
+  ylab("Frequency")
 
 ```
 
@@ -94,6 +114,9 @@ Go to the ngram viewer, enter the terms "1883", "1910", and "1950" and take a sc
 
 Add your screenshot for Part C below this line using the `![](figure_filename.png)` syntax and comment on similarities / differences.
 
+![](ngram_viewer.png)
+
+My graph is similar to the ngram viewer graph.
 
 # Part D
 
@@ -104,6 +127,11 @@ Add your screenshot for Part C below this line using the `![](figure_filename.pn
 Plot the raw counts for the terms "1883", "1910", and "1950" over time from 1850 to 2012. Use the `comma` function from the `scales` package for a readable y axis. The colors for each term should match your last plot, and it's nice if these match the original paper but not strictly necessary.
 
 ```{r plot-raw-mentions-over-time}
+
+counts2 %>% 
+  ggplot() + geom_line(aes(x = year, y = volume, color = term)) +
+  scale_y_continuous(label = comma) + xlim(1850, 2012) + xlab("Year") +
+  ylab("Frequency")
 
 ```
 
@@ -118,12 +146,20 @@ As part of answering this question, make an additional plot.
 Plot the total counts for each year over time, from 1850 to 2012. Use the `comma` function from the `scales` package for a readable y axis. There should be only one line on this plot (not three).
 
 ```{r plot-totals}
-
+counts2 %>% 
+  group_by(year) %>% 
+  summarize(total = sum(volume)) %>%
+  ggplot() + 
+  geom_line(aes(x = year, y = total)) + 
+  xlim(1800, 2012) + 
+  scale_y_continuous(label = comma)
 ```
 
 ## Your written answer
 
 Write up your answer to Part E here.
+
+I reject Michel et al.'s conclusion.  When looking at percentages, it looks like people are forgetting things faster over time, but when looking at just counts, it is clear that that is not the case, all of the years are mentioned more as time goes on (probably because more books are being published.)
 
 # Part F
 
@@ -135,6 +171,12 @@ For each year term, find the year where its proportion of mentions peaks (hits i
 
 ```{r compute-peaks}
 
+peaks <- counts %>%
+  group_by(term) %>% filter(year >= 1850) %>%
+  filter(prop_mentions == max(prop_mentions)) %>%
+  mutate(half_prop = .5 * prop_mentions) %>%
+  mutate(peak_year = year) %>% ungroup()
+
 ```
 
 ## Compute half-lifes
@@ -142,6 +184,27 @@ For each year term, find the year where its proportion of mentions peaks (hits i
 Now, for each year term, find the minimum number of years it takes for the proportion of mentions to decline from its peak value to half its peak value. Store this in an intermediate data frame.
 
 ```{r compute-half-lifes}
+
+counts <- counts %>% select(term, year, prop_mentions)
+peaks <- peaks %>% select(term, peak_year, half_prop)
+
+# rejoint <- left_join(counts, peaks) %>%
+#   filter(term >= 1875 & term <= 1975) %>%
+#   filter(year >= 1850) %>%
+#   group_by(term) %>%
+#   filter(prop_mentions < half_prop) %>%
+#   filter(prop_mentions == max(prop_mentions)) %>%
+#   mutate(half_life = year - peak_year)
+
+
+rejoint <- left_join(counts, peaks) %>%
+  filter(term >= 1875 & term <= 1975) %>%
+  filter(year >= peak_year) %>%
+  group_by(term) %>%
+  filter(prop_mentions < half_prop) %>%
+  filter(year == min(year)) %>%
+  mutate(half_life = year - peak_year)
+  
 
 ```
 
@@ -152,11 +215,17 @@ Plot the half-life of each term over time from 1850 to 2012. Each point should r
 
 ```{r plot-half-lifes}
 
+rejoint %>% ggplot() + 
+  geom_point(aes(x = term, y = half_life)) + 
+  geom_smooth(aes(x = term, y = half_life))
+
 ```
 
 ## Your written answer
 
 Write up your answer to Part F here.
+
+My plot is not similar to the one in the inset of figure 3a that was created from the version 1 data.
 
 # Part G
 
