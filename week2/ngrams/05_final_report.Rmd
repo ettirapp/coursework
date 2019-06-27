@@ -146,12 +146,12 @@ As part of answering this question, make an additional plot.
 Plot the total counts for each year over time, from 1850 to 2012. Use the `comma` function from the `scales` package for a readable y axis. There should be only one line on this plot (not three).
 
 ```{r plot-totals}
-counts2 %>% 
+counts %>% 
   group_by(year) %>% 
-  summarize(total = sum(volume)) %>%
+  summarize(total = sum(total_volume)) %>%
   ggplot() + 
   geom_line(aes(x = year, y = total)) + 
-  xlim(1800, 2012) + 
+  xlim(1850, 2012) + 
   scale_y_continuous(label = comma)
 ```
 
@@ -188,24 +188,15 @@ Now, for each year term, find the minimum number of years it takes for the propo
 counts <- counts %>% select(term, year, prop_mentions)
 peaks <- peaks %>% select(term, peak_year, half_prop)
 
-# rejoint <- left_join(counts, peaks) %>%
-#   filter(term >= 1875 & term <= 1975) %>%
-#   filter(year >= 1850) %>%
-#   group_by(term) %>%
-#   filter(prop_mentions < half_prop) %>%
-#   filter(prop_mentions == max(prop_mentions)) %>%
-#   mutate(half_life = year - peak_year)
-
-
 rejoint <- left_join(counts, peaks) %>%
   filter(term >= 1875 & term <= 1975) %>%
   filter(year >= peak_year) %>%
   group_by(term) %>%
   filter(prop_mentions < half_prop) %>%
   filter(year == min(year)) %>%
-  mutate(half_life = year - peak_year)
+  mutate(half_life = year - peak_year) %>%
+  ungroup()
   
-
 ```
 
 ## Plot the inset of figure 3a
@@ -234,6 +225,14 @@ My plot is not similar to the one in the inset of figure 3a that was created fro
 ## Your written answer
 
 Write up your answer to Part G here. Include code that shows the years with the smallest and largest half-lifes.
+
+rejoint %>% select(term, half_life) %>%
+filter(half_life == min(half_life))
+
+rejoint %>% select(term, half_life) %>%
+filter(half_life == max(half_life))
+
+1877, 1878, and 1942 had the shortest half-lifes, 4 years. 1900 had the longest half-life, 19 years.
 
 # Makefile
 

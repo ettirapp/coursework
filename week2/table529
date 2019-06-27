@@ -1,0 +1,4 @@
+bodydata <- read_table(url("http://jse.amstat.org/datasets/body.dat.txt"), col_names = c("a", "b", "c", "d", "e", "f", "g", "h", "i", "v", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "weight", "height", "w"))
+lm.fit = lm(weight~height, data = bodydata)
+summary(lm.fit)
+plot(bodydata$height, bodydata$weight)
