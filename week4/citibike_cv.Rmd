@@ -1,0 +1,109 @@
+---
+title: "Citibikes"
+date: '`r Sys.time()`'
+output:
+  html_document:
+    #code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(knitr)
+library(modelr)
+
+# set plot theme
+theme_set(theme_bw())
+```
+
+# Load and preview data
+
+Read data from the `trips_per_day.tsv` file
+```{r load-data}
+
+trips <- read_tsv('trips_per_day.tsv')
+
+```
+
+```{r partition-data}
+
+shuffled <- sample_frac(trips, 1, replace = F)
+trainingData <- shuffled[1:I(.8*nrow(trips)), 1:8]
+validationData <- shuffled[I(.8*nrow(trips)+1):nrow(trips), 1:8]
+
+```
+
+```{r modeling}
+
+lm.fitT <- lm(num_trips ~ tmin, data = trainingData)
+
+trainingData <- add_predictions(trainingData, lm.fitT)
+validationData <- add_predictions(validationData, lm.fitT)
+
+validationData %>% ggplot() +
+  geom_line(data = trainingData, aes(x = tmin, y = pred), color = "blue") +
+  geom_point(aes(x = tmin, y = num_trips), color = "red") +
+  geom_point(data = trainingData, aes(x = tmin, y = num_trips), color = "green")
+
+cor(trainingData$tmin, trainingData$num_trips) ^ 2
+#rsquare(lm.fitT, trainingData)
+sqrt(mean((trainingData$pred - trainingData$num_trips)^2))
+#rmse(lm.fitT, trainingData)
+
+cor(validationData$num_trips, validationData$pred) ^ 2
+sqrt(mean((validationData$pred - validationData$num_trips)^2))
+#rmse(lm.fitT, validationData)
+
+```
+
+```{r quadratic}
+
+lm.fitQ <- lm(num_trips ~ tmin + I(tmin^2), data = trainingData)
+
+trainingData <- add_predictions(trainingData, lm.fitQ, var = "pred2")
+validationData <- add_predictions(validationData, lm.fitQ, var = "pred2")
+
+validationData %>% ggplot() +
+  geom_line(data = trainingData, aes(x = tmin, y = pred2), color = "black") +
+  geom_point(aes(x = tmin, y = num_trips), color = "red") +
+  geom_point(data = trainingData, aes(x = tmin, y = num_trips), color = "green")
+
+rmse(lm.fitQ, trainingData)
+rsquare(lm.fitQ, trainingData)
+
+rmse(lm.fitQ, validationData)
+rsquare(lm.fitQ, validationData)
+
+```
+
+```{r polynomial-errors}
+
+K <- c(1:8)
+
+training_r_sq <- c()
+validation_r_sq <- c()
+training_rmse <- rep(0, 8)
+validation_rmse <- rep(0, 8)
+
+for (k in K){
+  lm.fit <- lm(num_trips ~ poly(tmin, k, raw = T), data = trainingData)
+  training_r_sq[k] <- rsquare(lm.fit, trainingData)
+  validation_r_sq[k] <- rsquare(lm.fit, validationData)
+  training_rmse[k] <- rmse(lm.fit, trainingData)
+  validation_rmse[k] <- rmse(lm.fit, validationData)
+}
+
+ggplot() + 
+  geom_line(aes(x = K, y = training_r_sq), color = "red") + 
+  geom_line(aes(x = K, y = validation_r_sq), color = "blue") +
+  xlab("Polynomial Order") +
+  ylab("R-Squared")
+
+ ggplot() + 
+   geom_line(aes(x = K, y = training_rmse)) + 
+   geom_line(aes(x = K, y = validation_rmse))
+
+```
