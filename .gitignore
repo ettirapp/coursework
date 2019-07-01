@@ -3,9 +3,7 @@
 *~
 *.zip
 .ipynb_checkpoints
-<<<<<<< HEAD
-=======
 *.gz
 *.csv
 *.tsv
->>>>>>> ecaf876ee55d281fc1557fae6a4e9ef48df1a285
+*.dat
