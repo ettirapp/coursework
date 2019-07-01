@@ -103,7 +103,46 @@ ggplot() +
   ylab("R-Squared")
 
  ggplot() + 
-   geom_line(aes(x = K, y = training_rmse)) + 
-   geom_line(aes(x = K, y = validation_rmse))
+   geom_line(aes(x = K, y = training_rmse), color = "red") + 
+   geom_line(aes(x = K, y = validation_rmse), color = "blue")
+
+```
+
+```{r model 4}
+
+lm.fit4 <- lm(num_trips ~ poly(tmin, 4, raw = T), data = trainingData)
+
+trainingData <- add_predictions(trainingData, lm.fit4, var = "pred4")
+validationData <- add_predictions(validationData, lm.fit4, var = "pred4")
+
+validationData %>% ggplot() +
+  geom_line(data = trainingData, aes(x = tmin, y = pred4), color = "blue") +
+  geom_point(aes(x = tmin, y = num_trips), color = "red") +
+  geom_point(data = trainingData, aes(x = tmin, y = num_trips), color = "green")
+
+```
+
+```{r k-fold}
+
+folded <- sample_frac(trips, 1, replace = F)
+folded <- folded %>% mutate(fold = ((row_number() %% 5) + 1))
+
+RMSE <- c()
+
+for (f in 1:5){
+  trainingD <- folded %>% filter(fold != f)
+  validationD <- folded %>% filter(fold == f)
+  
+  lm.fitF <- lm(num_trips ~ tmin, data = trainingD)
+  
+  RMSE[f] <- rmse(lm.fitF, validationD)
+}
+
+mean(RMSE)
+sd(RMSE)/sqrt(292)
+
+# MSE <- RMSE ^ 2
+# mean(MSE)
+# sd(MSE)/sqrt(292)
 
 ```
