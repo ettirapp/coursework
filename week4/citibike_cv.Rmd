@@ -14,6 +14,7 @@ output:
 library(tidyverse)
 library(knitr)
 library(modelr)
+library(lubridate)
 
 # set plot theme
 theme_set(theme_bw())
@@ -102,9 +103,9 @@ ggplot() +
   xlab("Polynomial Order") +
   ylab("R-Squared")
 
- ggplot() + 
-   geom_line(aes(x = K, y = training_rmse), color = "red") + 
-   geom_line(aes(x = K, y = validation_rmse), color = "blue")
+ # ggplot() + 
+ #   geom_line(aes(x = K, y = training_rmse), color = "red") + 
+ #   geom_line(aes(x = K, y = validation_rmse), color = "blue")
 
 ```
 
@@ -127,22 +128,59 @@ validationData %>% ggplot() +
 folded <- sample_frac(trips, 1, replace = F)
 folded <- folded %>% mutate(fold = ((row_number() %% 5) + 1))
 
-RMSE <- c()
+training_rmse <- rep(0, 8)
+validation_rmse <- rep(0, 8)
 
-for (f in 1:5){
-  trainingD <- folded %>% filter(fold != f)
-  validationD <- folded %>% filter(fold == f)
+for (k in 1:8){
   
-  lm.fitF <- lm(num_trips ~ tmin, data = trainingD)
+  tRMSE <- rep(0, 5)
+  vRMSE <- rep(0, 5)
   
-  RMSE[f] <- rmse(lm.fitF, validationD)
+  for (f in 1:5){
+    trainingD <- folded %>% filter(fold != f)
+    validationD <- folded %>% filter(fold == f)
+  
+    lm.fitF <- lm(num_trips ~ poly(tmin, k, raw = T), data = trainingD)
+  
+    tRMSE[f] <- rmse(lm.fitF, trainingD)
+    vRMSE[f] <- rmse(lm.fitF, validationD)
+  }
+
+  training_rmse[k] <- mean(tRMSE)
+  validation_rmse[k] <- mean(vRMSE)
 }
 
-mean(RMSE)
-sd(RMSE)/sqrt(292)
 
-# MSE <- RMSE ^ 2
-# mean(MSE)
-# sd(MSE)/sqrt(292)
+ggplot() + geom_line(aes(x = 1:8, y = training_rmse), color = "red") +
+  geom_line(aes(x = 1:8, y = validation_rmse), color = "blue")
+
+```
+
+```{r prediction}
+
+holidays <- read_csv("https://gist.githubusercontent.com/shivaas/4758439/raw/b0d3ddec380af69930d0d67a9e0519c047047ff8/US%2520Bank%2520holidays", col_names = c("row_num", "date", "holiday"))
+
+trip_data <- left_join(trips, holidays, by = c("ymd" = "date"))
+
+trip_data <- trip_data %>% 
+  mutate(is_holiday = !(is.na(holiday))) %>%
+  mutate(weekday = wday(ymd)) %>%
+  mutate(weekend = (weekday == 1 | weekday == 7)) %>%
+  dplyr::select(ymd, prcp, snwd, snow, tmax, tmin, is_holiday, num_trips, weekend)
+
+shuffled <- sample_frac(trip_data, 1, replace = F)
+trainingDataP <- shuffled[1:I(.8*nrow(trips)), 1:9]
+validationDataP <- shuffled[I(.8*nrow(trips)+1):nrow(trips), 1:9]
+
+lm.fit <- lm(num_trips~.-ymd -tmin -snow, data = trainingDataP)
+
+trip_data <- add_predictions(trip_data, lm.fit)
+
+ggplot(data = trip_data) +
+  geom_point(aes(x = ymd, y = num_trips)) +
+  geom_line(aes(x = ymd, y = pred))
+
+validationDataP <- add_predictions(validationDataP, lm.fit)
+rmseV <- sqrt(mean((validationDataP$pred - validationDataP$num_trips)^2))
 
 ```
