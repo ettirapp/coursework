@@ -1,0 +1,76 @@
+---
+  title: "Citibikes"
+date: '`r Sys.time()`'
+output:
+  html_document:
+  #code_folding: hide
+  number_sections: yes
+toc: yes
+toc_depth: 3
+---
+  
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(knitr)
+library(modelr)
+library(lubridate)
+
+# set plot theme
+theme_set(theme_bw())
+```
+
+```{r load-data}
+
+trips <- read_tsv('trips_per_day.tsv')
+
+holidays <- read_csv("https://gist.githubusercontent.com/shivaas/4758439/raw/b0d3ddec380af69930d0d67a9e0519c047047ff8/US%2520Bank%2520holidays", col_names = c("row_num", "date", "holiday"))
+
+trip_data <- left_join(trips, holidays, by = c("ymd" = "date"))
+
+trip_data <- trip_data %>% 
+  mutate(is_holiday = !(is.na(holiday))) %>%
+  mutate(weekday = wday(ymd)) %>%
+  mutate(weekend = (weekday == 1 | weekday == 7)) %>%
+  dplyr::select(ymd, prcp, snwd, snow, tmax, tmin, is_holiday, num_trips, weekend)
+
+```
+
+```{r prediction}
+
+trip_data <- sample_frac(trip_data, 1, replace = F) %>%
+  mutate(fold = ((row_number() %% 5) + 1))
+
+vRMSE = c()
+vRsquare = c()
+tRMSE = c()
+tRsquare = c()
+
+for (f in 1:5){
+  trainingData <- trip_data %>% filter(fold != f)
+  validationData <- trip_data %>% filter(fold == f)
+  
+  lm.fit <- lm(num_trips~ prcp + snwd:tmax + tmax + is_holiday + weekend, data = trainingData)
+  
+  vRMSE[f] <- rmse(lm.fit, validationData)
+  vRsquare[f] <- rsquare(lm.fit, validationData)
+  tRMSE[f] <- rmse(lm.fit, trainingData)
+  tRsquare[f] <- rsquare(lm.fit, trainingData)
+}
+
+v_RMSE <- mean(vRMSE)
+v_Rsq <- mean(vRsquare)
+t_RMSE <- mean(tRMSE)
+t_Rsq <- mean(tRsquare)
+
+trip_data <- add_predictions(trip_data, lm.fit)
+
+ggplot(data = trip_data) +
+  geom_point(aes(x = ymd, y = num_trips)) +
+  geom_line(aes(x = ymd, y = pred))
+
+ggplot(data = trip_data) +
+  geom_point(aes(x = pred, y = num_trips)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed")
+  
+```
