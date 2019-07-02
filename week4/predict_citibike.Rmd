@@ -50,7 +50,7 @@ for (f in 1:5){
   trainingData <- trip_data %>% filter(fold != f)
   validationData <- trip_data %>% filter(fold == f)
   
-  lm.fit <- lm(num_trips~ prcp + snwd:tmax + tmax + is_holiday + weekend, data = trainingData)
+  lm.fit <- lm(num_trips ~ prcp + snwd:tmax + tmax + is_holiday + weekend, data = trainingData)
   
   vRMSE[f] <- rmse(lm.fit, validationData)
   vRsquare[f] <- rsquare(lm.fit, validationData)
@@ -72,5 +72,7 @@ ggplot(data = trip_data) +
 ggplot(data = trip_data) +
   geom_point(aes(x = pred, y = num_trips)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed")
+
+save(lm.fit, file = "model.RData")
   
 ```

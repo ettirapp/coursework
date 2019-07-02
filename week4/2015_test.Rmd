@@ -1,0 +1,104 @@
+---
+title: "testing_citibike_model"
+date: '`r Sys.time()`'
+output:
+  html_document:
+  #code_folding: hide
+  number_sections: yes
+toc: yes
+toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(knitr)
+library(modelr)
+library(lubridate)
+library(broom)
+
+# set plot theme
+theme_set(theme_bw())
+```
+
+
+```{r load-weather-data}
+
+weather <- read_csv("weather_2015.csv")
+weather <- select(weather, DATE, PRCP, SNWD, SNOW, TMAX, TMIN)
+names(weather) <- tolower(names(weather))
+weather <- mutate(weather, ymd = as.Date(date))
+weather <- tbl_df(weather)
+
+model <- load("model.RData")
+
+holidays <- read_csv("https://gist.githubusercontent.com/shivaas/4758439/raw/b0d3ddec380af69930d0d67a9e0519c047047ff8/US%2520Bank%2520holidays", col_names = c("row_num", "date", "holiday"))
+
+data2015 <- left_join(weather, holidays)
+
+data2015 <- data2015 %>% 
+  mutate(is_holiday = !(is.na(holiday))) %>%
+  mutate(weekday = wday(ymd)) %>%
+  mutate(weekend = (weekday == 1 | weekday == 7)) %>%
+  dplyr::select(ymd, prcp, snwd, snow, tmax, tmin, is_holiday, weekend)
+
+```
+
+```{r load-citibike-data}
+
+# define a function to turn strings into datetimes
+parse_datetime <- function(s, format="%Y-%m-%d %H:%M:%S") {
+  as.POSIXct(as.character(s), format=format)
+}
+
+# load each month of the trip data into one big data frame
+csvs <- Sys.glob('*-tripdata.csv')
+trips <- data.frame()
+
+for (csv in csvs) {
+  print(csv)
+  tmp <- read_csv(csv, na='\\N')
+
+  # the date format changed to something ugly in 2014-09 which read_csv doesn't recognize as a datetime,
+  # so manually convert the date from a string to a datetime
+  if (typeof(tmp$starttime) == "character")
+    tmp <- mutate(tmp,
+                  starttime=parse_datetime(starttime, "%m/%d/%Y %H:%M"),
+                  stoptime=parse_datetime(stoptime, "%m/%d/%Y %H:%M"))
+
+  trips <- rbind(trips, tmp)
+}
+
+# replace spaces in column names with underscores
+names(trips) <- gsub(' ', '_', names(trips))
+
+# add a column for year/month/day (without time of day)
+trips <- mutate(trips, ymd=as.Date(starttime))
+
+# recode gender as a factor 0->"Unknown", 1->"Male", 2->"Female"
+trips <- mutate(trips, gender=factor(gender, levels=c(0,1,2), labels=c("Unknown","Male","Female")))
+
+```
+
+``` {r format-2015-data}
+
+trips <- trips %>%
+  select(ymd) %>%
+  ungroup() %>%
+  group_by(ymd) %>%
+  summarize(num_trips = n())
+
+```
+
+```{r predicting!}
+
+all_data <- left_join(data2015, trips)
+
+all_data <- add_predictions(all_data, lm.fit)
+
+rmse <- sqrt(mean((data2015$pred - all_data$num_trips)^2))
+
+print(rmse)
+
+```
