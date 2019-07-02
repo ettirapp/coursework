@@ -83,7 +83,7 @@ trips <- mutate(trips, gender=factor(gender, levels=c(0,1,2), labels=c("Unknown"
 
 ``` {r format-2015-data}
 
-trips <- trips %>%
+trips2 <- trips %>%
   select(ymd) %>%
   ungroup() %>%
   group_by(ymd) %>%
@@ -93,12 +93,11 @@ trips <- trips %>%
 
 ```{r predicting!}
 
-all_data <- left_join(data2015, trips)
+all_data <- left_join(data2015, trips2)
 
 all_data <- add_predictions(all_data, lm.fit)
 
-rmse <- sqrt(mean((data2015$pred - all_data$num_trips)^2))
-
-print(rmse)
+RMSE <- sqrt(mean((all_data$pred - all_data$num_trips)^2))
+print(RMSE)
 
 ```

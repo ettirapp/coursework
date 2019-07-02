@@ -63,6 +63,7 @@ v_Rsq <- mean(vRsquare)
 t_RMSE <- mean(tRMSE)
 t_Rsq <- mean(tRsquare)
 
+lm.fit <- lm(num_trips ~ prcp + snwd:tmax + tmax + is_holiday + weekend, data = trip_data)
 trip_data <- add_predictions(trip_data, lm.fit)
 
 ggplot(data = trip_data) +
