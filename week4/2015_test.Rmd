@@ -95,9 +95,13 @@ trips2 <- trips %>%
 
 all_data <- left_join(data2015, trips2)
 
+all_data <- mutate(all_data, tmax = tmax/10)
+
 all_data <- add_predictions(all_data, lm.fit)
 
 RMSE <- sqrt(mean((all_data$pred - all_data$num_trips)^2))
 print(RMSE)
+
+ggplot(data = all_data) + geom_point(aes(x = ymd, y = num_trips)) + geom_line(aes(x = ymd, y = pred))
 
 ```
