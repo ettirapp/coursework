@@ -15,6 +15,7 @@ library(Matrix)
 library(glmnet)
 library(ROCR)
 library(tidyverse)
+library(broom)
 
 theme_set(theme_bw())
 
@@ -27,9 +28,13 @@ Read business and world articles into a single data frame.
 
 ```{r read-articles}
 
+business <- read_tsv("business.tsv")
+world <- read_tsv("world.tsv")
+df <- rbind(business, world)
+
 ```
 
-Create a Corpus from the article snippets using the `VectorSource()` and `Corpus()` functions from the `tm` package. Then create a DocumentTermMatrix from the snippet Corpus, removing punctuation and numbers and convert the DocumentTermMatrix to a sparseMatrix, required by cv.glmnet using the provided funciton. See the `DocumentTermMatrix()` documentation for more details, which has parameters for all of the punctuation and number parsing.
+Create a Corpus from the article snippets using the `VectorSource()` and `Corpus()` functions from the `tm` package. Then create a DocumentTermMatrix from the snippet Corpus, removing punctuation and numbers and convert the DocumentTermMatrix to a sparseMatrix, required by cv.glmnet using the provided function. See the `DocumentTermMatrix()` documentation for more details, which has parameters for all of the punctuation and number parsing.
 
 ```{r create-sparse-dtm}
 
@@ -37,6 +42,11 @@ Create a Corpus from the article snippets using the `VectorSource()` and `Corpus
 dtm_to_sparse <- function(dtm) {
  sparseMatrix(i=dtm$i, j=dtm$j, x=dtm$v, dims=c(dtm$nrow, dtm$ncol), dimnames=dtm$dimnames)
 }
+
+vs <- VectorSource(df$snippet)
+corpus <- Corpus(vs)
+dtm <- DocumentTermMatrix(corpus, control = list(removePunctuation = TRUE, removeNumbers = TRUE))
+sparse <- dtm_to_sparse(dtm)
 
 ```
 
@@ -47,17 +57,38 @@ Create a train / test split
 
 ```{r create-train-test}
 
+indices <- sample(nrow(articles), floor(nrow(articles) * .9))
+
+trainX <- sparse[indices,]
+trainY <- df$section[indices]
+testX <- sparse[-indices,]
+testY <- df$section[-indices]
+
 ```
 
 Cross-validate on the training set using logistic regression with cv.glmnet, measuring auc. See documentation on `cv.glmnet()`, specifically the `family` and `type.measure` parameters.
 
 ```{r cross-validate}
 
+cvfit <- cv.glmnet(trainX, trainY, family = "binomial", type.measure = "auc")
+
 ```
 
 Evaluate performance for the best-fit (`lambda.min`) model by plotting the ROC curve and printing the accuracy and AUC.
 
 ```{r evaluate-best-model}
+
+cm <- data.frame(actual = testY, pred = predict(cvfit, testX, s = "lambda.min", type = "response"))
+
+
+pred <- prediction(cm$X1, testY)
+perf_lr <- performance(pred, measure='tpr', x.measure='fpr')
+plot(perf_lr)
+performance(pred, 'auc')
+
+cm2 <- data.frame(actual = testY, pred = predict(cvfit, testX, s = "lambda.min", type = "class"))
+cm2 %>% summarize(accuracy = mean(actual == X1))
+table(cm2)
 
 ```
 
@@ -67,12 +98,18 @@ Count how many words have non-zero coefficients. Use the `coef()` and `tidy()` f
 
 ```{r count-nonzero-weights}
 
+nrow(tidy(coef(cvfit, s = "lambda.min")))
+
 ```
 
 Print the words with the top 10 heighest weights for the Business section. Do the same for the World section. Use the `coef()` and `tidy()` functions for `lambda.min`.
 
 
 ```{r show-top-words}
+
+tidy(coef(cvfit, s = "lambda.min")) %>% arrange(desc(value)) %>% head(10)
+
+tidy(coef(cvfit, s = "lambda.min")) %>% arrange(desc(value)) %>% tail(10)
 
 ```
 

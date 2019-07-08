@@ -101,6 +101,7 @@ all_data <- add_predictions(all_data, lm.fit)
 
 RMSE <- sqrt(mean((all_data$pred - all_data$num_trips)^2))
 print(RMSE)
+print(rsquare(lm.fit, all_data))
 
 ggplot(data = all_data) + geom_point(aes(x = ymd, y = num_trips)) + geom_line(aes(x = ymd, y = pred))
 
