@@ -114,4 +114,4 @@ tidy(coef(cvfit, s = "lambda.min")) %>% arrange(desc(value)) %>% tail(10)
 ```
 
 Think about how this model would perform if you used it to classify data from today's newspaper compared to the data in the test set.
-
+T
