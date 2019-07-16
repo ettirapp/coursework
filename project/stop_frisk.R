@@ -11,6 +11,9 @@ data10 <- read_csv('sqf-2010-csv.csv')
 data11 <- read_csv('sqf-2011-csv.csv')
 data12 <- read_csv('sqf-2012-csv.csv')
 data13 <- read_csv('sqf-2013-csv.csv')
+data14 <- read_csv('sqf-2014-csv.csv')
+data15 <- read_csv('sqf-2015-csv.csv')
+data16 <- read_csv('sqf-2016-csv.csv')
 
 names(data13) <- tolower(names(data13))
 
@@ -29,4 +32,14 @@ data06 <- data06 %>% mutate(stname = strname, stinter = strintr, rescode = resco
 
 data <- rbind(alldata, data06)
 
-save(data, file = 'C:/Users/Etta Rapp/Documents/GitHub/coursework/project/stop_frisk.csv')
+
+next3 <- rbind(data14, data15, data16) %>% mutate(wepfound = NA)
+names(next3) <- tolower(names(next3))
+
+data17 <- readxl::read_xlsx('sqf-2017.xlsx')
+data18 <- readxl::read_xlsx('sqf-2018.xlsx')
+colnames(data18)[colnames(data18) == "Stop Frisk Time"] <- "STOP_FRISK_TIME"
+combined <- rbind(data17, data18)
+names(combined) <- tolower(names(combined))
+
+alldata03_16 <- rbind(data, next3)
